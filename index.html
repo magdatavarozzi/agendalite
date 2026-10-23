@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AgendaLite</title>
+<meta name="description" content="A simple daily planner: type one line to file appointments and to-dos.">
+<meta name="theme-color" content="#eef3fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11131b" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AgendaLite">
+<style>
+:root{
+  --bg:#eef3fa; --panel:#ffffff; --ink:#1d1a2b; --soft:#615c74; --faint:#9a96ab; --line:#dde5f0;
+  --accent:#7a5cf0; --accent-ink:#ffffff; --accent-soft:#ece7fd; --joy:#7fd1a8; --joy-soft:#e2f5ea;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11131b; --panel:#1a1d28; --ink:#ecebf4; --soft:#a8a5ba; --faint:#6f6c82; --line:#2a2d3b;
+    --accent:#a08cff; --accent-ink:#14121f; --accent-soft:#2a2550; --joy:#7fd1a8; --joy-soft:#1e3329;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11131b; --panel:#1a1d28; --ink:#ecebf4; --soft:#a8a5ba; --faint:#6f6c82; --line:#2a2d3b;
+  --accent:#a08cff; --accent-ink:#14121f; --accent-soft:#2a2550; --joy:#7fd1a8; --joy-soft:#1e3329;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto;padding:22px 18px 56px}
+
+/* header */
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.brand{font-size:14px;color:var(--faint);font-weight:600}
+h1{margin:6px 0 4px;font-size:30px;line-height:1.15;font-weight:750;letter-spacing:-.02em}
+
+/* capture: the one bold element, shaped like a text to yourself */
+.capture{display:flex;align-items:center;gap:8px;background:var(--accent);
+  border-radius:22px 22px 6px 22px;padding:6px 6px 6px 16px}
+.capture input{flex:1;min-width:0;border:0;background:transparent;color:var(--accent-ink);
+  font-size:17px;padding:10px 0;outline:none}
+.capture input::placeholder{color:var(--accent-ink);opacity:.6}
+.capture:focus-within{box-shadow:0 0 0 3px var(--accent-soft)}
+.send{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--accent-ink);
+  color:var(--accent);font-size:22px;font-weight:700;line-height:1}
+.chips{display:flex;gap:8px;margin:10px 0 0;flex-wrap:wrap}
+.chip{position:relative;border:1px solid var(--line);background:var(--panel);color:var(--soft);
+  border-radius:999px;padding:6px 14px;font-size:14px;overflow:hidden}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.chip input[type=date]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+
+/* sections */
+section{margin-top:28px}
+h2{font-size:15px;font-weight:650;color:var(--soft);margin:0 0 6px}
+ul{list-style:none;margin:0;padding:0}
+.list{background:var(--panel);border-radius:14px;border:1px solid var(--line);overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:0 14px;min-height:50px}
+.row + .row{border-top:1px solid var(--line)}
+.rowbtn{flex:1;display:flex;align-items:baseline;gap:12px;text-align:left;background:none;border:0;
+  padding:13px 0;min-width:0}
+.txt{flex:1;min-width:0;overflow-wrap:anywhere}
+.time{flex:none;min-width:68px;font-variant-numeric:tabular-nums;font-weight:650;color:var(--accent)}
+.past .time,.past .txt{color:var(--faint)}
+.tag{flex:none;font-size:13px;color:var(--faint)}
+.empty{color:var(--faint);padding:13px 14px;margin:0}
+.check{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--faint);background:none;
+  display:grid;place-items:center;font-size:14px;padding:0;color:transparent}
+.check:hover{border-color:var(--accent)}
+.row.ticked .txt{text-decoration:line-through;color:var(--faint)}
+.row.ticked .check,.check.on{background:var(--joy);border-color:var(--joy);color:#1b2430}
+.done-sec .list{background:var(--joy-soft);border-color:transparent}
+.done-sec .row + .row{border-top-color:rgba(0,0,0,.06)}
+.done-sec .txt{color:var(--soft)}
+.evening .done-sec h2{color:var(--ink)}
+.evening .capture{opacity:.85}
+.day + .day{margin-top:14px}
+.dayname{font-size:14px;color:var(--soft);margin:0 0 4px 2px}
+
+/* footer */
+.foot{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:34px;padding-top:16px;border-top:1px solid var(--line)}
+.link{background:none;border:0;padding:6px 0;color:var(--soft);font-size:15px}
+.link:hover{color:var(--ink)}
+
+/* toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  width:min(528px,calc(100% - 24px));display:flex;align-items:center;gap:10px;
+  background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 12px 12px 16px;z-index:30;
+  box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.toast[hidden]{display:none}
+.toast span{flex:1;font-size:15px}
+.toast button{flex:none;border:0;border-radius:999px;background:var(--bg);color:var(--ink);padding:7px 14px;font-weight:650;font-size:14px}
+
+/* sheet */
+.back{position:fixed;inset:0;background:rgba(10,14,20,.42);z-index:40}
+.back[hidden]{display:none}
+.sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,0);width:min(560px,100%);
+  max-height:88vh;overflow:auto;background:var(--panel);border-radius:20px 20px 0 0;z-index:41;
+  padding:20px 18px calc(22px + env(safe-area-inset-bottom,0px))}
+.sheet[hidden]{display:none}
+.sheet h3{margin:0 0 14px;font-size:20px}
+.sheet h4{margin:22px 0 8px;font-size:15px;color:var(--soft)}
+.field{display:block;margin-bottom:12px;font-size:14px;color:var(--soft)}
+.field input,.field textarea{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--bg);font-size:16px;color:var(--ink)}
+.field textarea{min-height:84px;font-size:13px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.actions .spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:9px 16px;font-size:15px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:650}
+.btn.danger{color:#c0392b;border-color:transparent;padding-left:4px}
+.note{color:var(--soft);font-size:14px;margin:0 0 12px}
+.sheet .list{margin-bottom:6px}
+.warn{background:var(--joy-soft);border-radius:10px;padding:10px 12px;font-size:14px;margin:0 0 14px}
+
+.pulse{margin:0;color:var(--soft);font-size:16px;min-height:1.45em}
+.pulse b{color:var(--ink);font-weight:650}
+.wrap > .pulse{margin-bottom:18px}
+.row.now{background:var(--accent-soft)}
+.row.now .time,.row.next .time{color:var(--accent)}
+.row.next .txt{font-weight:600}
+.ring{position:fixed;left:0;top:0;width:34px;height:34px;border-radius:50%;border:3px solid var(--joy);pointer-events:none;z-index:60}
+@keyframes fresh{from{background:var(--accent-soft)}to{background:transparent}}
+.row.fresh{animation:fresh 1.8s ease-out}
+/* live preview */
+.preview{margin:6px 4px 0;min-height:1.45em;font-size:14px;color:var(--soft);overflow-wrap:anywhere}
+.preview b{color:var(--ink);font-weight:650}
+/* week strip */
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:12px 0 16px}
+.dayc{border:0;background:none;border-radius:12px;padding:6px 0 6px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--soft)}
+.dw{font-size:12px}
+.dn{font-size:17px;font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums}
+.dots{display:flex;gap:3px;height:5px}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.75}
+.dayc.is-today:not(.on) .dn{color:var(--accent)}
+.dayc.on{background:var(--accent)}
+.dayc.on .dw,.dayc.on .dn{color:var(--accent-ink)}
+.dayc.on .dots i{background:var(--accent-ink)}
+/* swipe */
+.sw{position:relative;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+.sw + .sw{border-top:1px solid var(--line)}
+.sw .row{position:relative;background:var(--panel)}
+.sw-bg{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;padding:0 18px;font-size:14px;font-weight:650;opacity:0}
+.sw[data-dir] .sw-bg{opacity:1}
+.sw[data-dir=r] .sw-bg{background:var(--joy);color:#1b2430}
+.sw[data-dir=l] .sw-bg{background:var(--accent-soft);color:var(--ink)}
+.sw[data-dir=r] .sw-bg span:last-child,.sw[data-dir=l] .sw-bg span:first-child{visibility:hidden}
+@media (prefers-reduced-motion: reduce){.ring{display:none}.row.fresh{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="brand">AgendaLite</span></div>
+  <h1 id="dateLine"></h1>
+  <p class="pulse" id="pulse" hidden></p>
+  <div class="strip" id="strip" role="group"></div>
+  <p class="warn" id="storeWarn" hidden></p>
+
+  <div id="capForm">
+    <div class="capture">
+      <input id="line" type="text" enterkeyhint="done" autocomplete="off" aria-label="New line">
+      <button class="send" type="button" id="sendBtn" aria-label="Add">+</button>
+    </div>
+    <p class="preview" id="preview" aria-live="polite"></p>
+    <div class="chips" role="group">
+      <button type="button" class="chip" data-chip="0" aria-pressed="false"></button>
+      <button type="button" class="chip" data-chip="1" aria-pressed="false"></button>
+      <label class="chip" id="pickChip" aria-pressed="false"><span id="pickLabel"></span><input type="date" id="pick"></label>
+    </div>
+  </div>
+
+  <main id="main"></main>
+</div>
+
+<div class="toast" id="toast" hidden role="status"><span id="toastText"></span><button id="toastFix" type="button"></button></div>
+<div class="back" id="back" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true"></div>
+
+<script>
+/* ---------- language ---------- */
+const FR = (navigator.language || 'en').toLowerCase().startsWith('fr');
+document.documentElement.lang = FR ? 'fr' : 'en';
+const LOC = FR ? 'fr-CA' : 'en-US';
+const T = FR ? {
+  placeholder:'Dentiste mardi 14h', today:'Aujourd’hui', tomorrow:'Demain', pick:'Choisir un jour',
+  filed:'Classé :', fix:'Corriger', appts:'Rendez-vous', noAppts:'Aucun rendez-vous aujourd’hui.',
+  todo:'À faire', noTodo:'Rien pour l’instant. Écrivez une ligne ci-dessus.', doneToday:'Fait aujourd’hui',
+  coming:'À venir', later:'Plus tard', log:'Tout ce qui est fait', backup:'Sauvegarde', edit:'Modifier',
+  text:'Texte', date:'Jour', time:'Heure', save:'Enregistrer', del:'Supprimer', cancel:'Annuler',
+  bring:'Ramener', laterNote:'Ce qui n’a pas bougé depuis une semaine attend ici. Touchez « Ramener » pour le remettre à aujourd’hui.',
+  laterEmpty:'Rien ici.', logEmpty:'Les éléments cochés apparaîtront ici.', toDoTag:'à faire', toDo:'À faire',
+  backupNote:'Vos données restent uniquement sur cet appareil. Gardez une copie de temps en temps.',
+  download:'Télécharger la sauvegarde', copy:'Copier le texte', copied:'Copié', backupText:'Texte de sauvegarde',
+  restoreH:'Restaurer', restoreFile:'Choisir un fichier', restorePaste:'Ou collez le texte de sauvegarde',
+  restore:'Remplacer mes données', restoreAgain:'Toucher encore pour confirmer', restored:'Données restaurées',
+  bad:'Ce texte n’est pas une sauvegarde AgendaLite.', markDone:'Marquer comme fait', undo:'Annuler fait',
+  close:'Fermer', storeWarn:'Le stockage de ce navigateur est indisponible : rien ne sera gardé après fermeture.',
+  allDay:'', items:n=>n===1?'1 élément':n+' éléments', deleted:'Supprimé',
+  upcoming:'Tout ce qui vient', upEmpty:'Rien de prévu pour l’instant.',
+  pNow:t=>`En cours : <b>${t}</b>`, pNext:(t,tm,d)=>`Prochain : <b>${t}</b> à ${tm}, dans ${d}`,
+  pTomorrow:(t,tm)=>`Demain commence par <b>${t}</b> à ${tm}.`, pDone:n=>`${n===1?'1 chose faite':n+' choses faites'} aujourd’hui.`,
+  pOpen:'Le reste de la journée est libre.', pFull:n=>`${n} rendez-vous aujourd’hui.`,
+  willFile:'Sera classé :', swDone:'Fait', nextDay:'Jour suivant', undoBtn:'Annuler', noApptsDay:'Aucun rendez-vous.',
+  moved:(d,t)=>`Reporté à ${d} : ${t}`
+} : {
+  placeholder:'Dentist Tuesday 2pm', today:'Today', tomorrow:'Tomorrow', pick:'Pick a day',
+  filed:'Filed:', fix:'Fix', appts:'Appointments', noAppts:'No appointments today.',
+  todo:'To do', noTodo:'Nothing yet. Type a line above.', doneToday:'Done today',
+  coming:'Coming up', later:'Later', log:'Everything done', backup:'Backup', edit:'Edit',
+  text:'Text', date:'Day', time:'Time', save:'Save', del:'Delete', cancel:'Cancel',
+  bring:'Bring back', laterNote:'Things untouched for a week wait here. Tap “Bring back” to move one to today.',
+  laterEmpty:'Nothing here.', logEmpty:'Checked-off items will appear here.', toDoTag:'to do', toDo:'To do',
+  backupNote:'Your planner lives only on this device. Save a copy now and then.',
+  download:'Download backup file', copy:'Copy text', copied:'Copied', backupText:'Backup text',
+  restoreH:'Restore', restoreFile:'Choose a file', restorePaste:'Or paste backup text',
+  restore:'Replace my data', restoreAgain:'Tap again to confirm', restored:'Data restored',
+  bad:'This text isn’t an AgendaLite backup.', markDone:'Mark as done', undo:'Mark as not done',
+  close:'Close', storeWarn:'This browser’s storage is unavailable, so nothing will be kept after closing.',
+  allDay:'', items:n=>n===1?'1 item':n+' items', deleted:'Deleted',
+  upcoming:'All upcoming', upEmpty:'Nothing scheduled ahead yet.',
+  pNow:t=>`Now: <b>${t}</b>`, pNext:(t,tm,d)=>`Next: <b>${t}</b> at ${tm}, in ${d}`,
+  pTomorrow:(t,tm)=>`Tomorrow starts with <b>${t}</b> at ${tm}.`, pDone:n=>`${n===1?'1 thing':n+' things'} done today.`,
+  pOpen:'The rest of today is open.', pFull:n=>`${n} appointments today.`,
+  willFile:'Files as:', swDone:'Done', nextDay:'Next day', undoBtn:'Undo', noApptsDay:'No appointments.',
+  moved:(d,t)=>`Moved to ${d}: ${t}`
+};
+
+/* ---------- date helpers ---------- */
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseYmd = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const daysBetween = (a,b) => Math.round((parseYmd(b)-parseYmd(a))/864e5);
+const todayStr = () => ymd(new Date());
+const capFirst = s => s.charAt(0).toUpperCase() + s.slice(1);
+const fmtLong = d => capFirst(new Intl.DateTimeFormat(LOC,{weekday:'long',month:'long',day:'numeric'}).format(d));
+const fmtDay = s => capFirst(new Intl.DateTimeFormat(LOC,{weekday:'long',month:'short',day:'numeric'}).format(parseYmd(s)));
+const fmtTime = t => { if(!t) return ''; const [h,m] = t.split(':').map(Number); const d = new Date(2000,0,1,h,m);
+  return new Intl.DateTimeFormat(LOC,{hour:'numeric',minute:'2-digit'}).format(d); };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- SCANNER (plain code, no library) ---------- */
+/*SCANNER_START*/
+const MONTHS = {january:1,janvier:1,janv:1,jan:1,february:2,fevrier:2,fevr:2,feb:2,fev:2,march:3,mars:3,mar:3,
+  april:4,avril:4,apr:4,avr:4,may:5,mai:5,june:6,juin:6,jun:6,july:7,juillet:7,juil:7,jul:7,august:8,aout:8,aug:8,
+  september:9,septembre:9,sept:9,sep:9,october:10,octobre:10,oct:10,november:11,novembre:11,nov:11,
+  december:12,decembre:12,dec:12};
+const WEEKDAYS = {sunday:0,dimanche:0,monday:1,lundi:1,tuesday:2,tues:2,tue:2,mardi:2,wednesday:3,weds:3,wed:3,
+  mercredi:3,thursday:4,thurs:4,thur:4,thu:4,jeudi:4,friday:5,fri:5,vendredi:5,saturday:6,samedi:6};
+const alt = o => Object.keys(o).sort((a,b)=>b.length-a.length).join('|');
+const MON = alt(MONTHS), WD = alt(WEEKDAYS);
+const PRE_T = '(?:(?:at|@|a|vers|around|by|for|pour)\\s+)?';
+
+function norm(s){ // lowercase, accents removed, same length as input
+  let o = '';
+  for (let i = 0; i < s.length; i++) {
+    let c = s[i]; const k = c.charCodeAt(0);
+    if (k < 0xD800 || k > 0xDFFF) {
+      c = c.normalize('NFD')[0].toLowerCase()[0];
+      if (c === '\u2019' || c === '\u2018') c = "'";
+    }
+    o += c;
+  }
+  return o;
+}
+
+function scan(line, now = new Date()){
+  const n = norm(line), used = [];
+  let ymdParts = null, rel = null, wd = null, isNext = false, hh = null, mm = 0;
+  const take = (src, fn) => {
+    const re = new RegExp(src, 'g'); let m;
+    while ((m = re.exec(n))) {
+      if (!m[0]) { re.lastIndex++; continue; }
+      const s = m.index, e = s + m[0].length;
+      if (used.some(([a,b]) => s < b && e > a)) continue;
+      if (fn(m) !== false) used.push([s,e]);
+    }
+  };
+  const setTime = (h, mi, ap) => {
+    if (hh !== null) return false;
+    h = +h; mi = mi ? +mi : 0;
+    if (ap) { ap = ap[0]; if (h < 1 || h > 12) return false; if (ap === 'p' && h < 12) h += 12; if (ap === 'a' && h === 12) h = 0; }
+    if (h > 23 || mi > 59) return false;
+    hh = h; mm = mi;
+  };
+  const setDate = (y, mo, d) => {
+    if (ymdParts) return false;
+    mo = +mo; d = +d; if (mo < 1 || mo > 12 || d < 1 || d > 31) return false;
+    ymdParts = [y ? (+y < 100 ? 2000 + +y : +y) : null, mo, d];
+  };
+
+  // dates
+  take('\\b(?:(?:on|le|the)\\s+)?(\\d{4})-(\\d{1,2})-(\\d{1,2})\\b', m => setDate(m[1], m[2], m[3]));
+  take(`\\b(?:(?:on|le|the)\\s+)?(\\d{1,2})(?:er|st|nd|rd|th)?\\s+(?:of\\s+)?(${MON})\\b\\.?(?:\\s+(\\d{4})\\b)?`, m => setDate(m[3], MONTHS[m[2]], m[1]));
+  take(`\\b(?:on\\s+)?(${MON})\\b\\.?\\s+(\\d{1,2})(?:er|st|nd|rd|th)?\\b(?:,?\\s+(\\d{4})\\b)?`, m => setDate(m[3], MONTHS[m[1]], m[2]));
+  take('\\b(?:(?:on|le)\\s+)?(\\d{1,2})\\/(\\d{1,2})(?:\\/(\\d{2,4}))?\\b', m => {
+    let a = +m[1], b = +m[2];
+    if (b > 12 && a <= 12) return setDate(m[3], a, b); // 10/27 read as month/day
+    return setDate(m[3], b, a);                         // 27/10 read as day/month
+  });
+
+  // times
+  take(PRE_T + '\\b(\\d{1,2})(?::(\\d{2}))?\\s*([ap])\\.?\\s?m\\b\\.?', m => setTime(m[1], m[2], m[3]));
+  take(PRE_T + '\\b(\\d{1,2})\\s?h\\s?(\\d{2})?\\b', m => setTime(m[1], m[2]));
+  take(PRE_T + '\\b(\\d{1,2}):(\\d{2})\\b', m => setTime(m[1], m[2]));
+  take('\\b(?:at|@|a)\\s+(noon|midday|midi)\\b|\\b(noon|midday|midi)\\b', () => setTime(12, 0));
+  take('\\b(?:at|@|vers)\\s+(\\d{1,2})\\b(?![:/h\\d])', m => { let h = +m[1]; if (h < 1 || h > 12) return false; if (h <= 7) h += 12; return setTime(h, 0); });
+
+  // relative day words
+  take("\\b(?:(?:for|pour)\\s+)?(day\\s+after\\s+tomorrow|apres-demain|apres\\s+demain|aujourd'hui|aujourdhui|today|tonight|ce\\s+soir|tomorrow|tmrw|demain)\\b", m => {
+    if (rel !== null || wd !== null) return false;
+    const w = m[1];
+    rel = /after|apres/.test(w) ? 2 : /tomorrow|tmrw|demain/.test(w) ? 1 : 0;
+  });
+  // weekdays
+  take(`\\b(?:(?:on|le|for|pour)\\s+)?(?:(this|next|ce|cette)\\s+)?(${WD})\\b(?:\\s+(prochain|prochaine))?`, m => {
+    if (wd !== null || rel !== null) return false;
+    wd = WEEKDAYS[m[2]]; isNext = m[1] === 'next' || !!m[3];
+  });
+
+  // resolve
+  const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const tMin = hh !== null ? hh*60 + mm : null;
+  let date = null;
+  if (ymdParts) {
+    let [y, mo, d] = ymdParts;
+    let cand = new Date(y || now.getFullYear(), mo-1, d);
+    if (cand.getMonth() !== mo-1) cand = null; // e.g. Feb 31
+    else if (!y && cand < today0) cand = new Date(now.getFullYear()+1, mo-1, d);
+    if (cand) date = ymd(cand);
+  } else if (rel !== null) {
+    date = ymd(addDays(today0, rel));
+  } else if (wd !== null) {
+    let diff = (wd - now.getDay() + 7) % 7;
+    if (diff === 0 && isNext) diff = 7;
+    date = ymd(addDays(today0, diff));
+  } else if (tMin !== null) {
+    date = ymd(today0);
+  }
+  const time = hh !== null ? `${pad(hh)}:${pad(mm)}` : null;
+
+  // title: the line minus the date/time words
+  used.sort((a,b) => a[0]-b[0]);
+  let t = '', last = 0;
+  for (const [s,e] of used) { t += line.slice(last, s) + ' '; last = e; }
+  t += line.slice(last);
+  t = t.replace(/\s+/g, ' ').trim();
+  const lead = /^(?:at|on|by|for|le|la|à|@|pour|this|ce|[-–—,:;])\s*/i;
+  const trail = /\s*(?:\bat|\bon|\bby|\bfor|\ble|\bla|à|@|\bpour|\bde|[-–—,:;])$/i;
+  let prev;
+  do { prev = t; t = t.replace(lead, '').replace(trail, '').trim(); } while (t !== prev && t);
+  if (!t) t = line.trim();
+  return { title: t, date, time };
+}
+/*SCANNER_END*/
+
+/* ---------- storage ---------- */
+const KEY = 'agendalite.v1';
+let db = { app:'AgendaLite', version:1, items:[] };
+let storageOK = true;
+function load(){
+  try { const r = localStorage.getItem(KEY); if (r) { const p = JSON.parse(r); if (p && Array.isArray(p.items)) db = p; } }
+  catch(e){ storageOK = false; }
+}
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(db)); }
+  catch(e){ storageOK = false; showStoreWarn(); }
+}
+function showStoreWarn(){ const w = document.getElementById('storeWarn'); if (!storageOK) { w.textContent = T.storeWarn; w.hidden = false; } }
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
+
+/* ---------- filing ---------- */
+// Rule: has a time -> appointment. Day only -> to do on that day. Neither -> to do today.
+function classify(date, time){
+  if (time) return { type:'appt', date: date || todayStr(), time };
+  return { type:'todo', date: date || todayStr(), time: null };
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const get = id => db.items.find(i => i.id === id);
+
+function describe(it){
+  const today = todayStr();
+  const day = it.date === today ? T.today : fmtDay(it.date);
+  return it.type === 'appt' ? `${day}, ${fmtTime(it.time)}` : (it.date === today ? `${T.toDo}, ${T.today.toLowerCase()}` : `${T.toDo}, ${day}`);
+}
+function isLater(it, today){
+  const since = it.touched > it.date ? it.touched : it.date;
+  return daysBetween(since, today) >= 7;
+}
+
+/* ---------- capture ---------- */
+const $ = s => document.querySelector(s);
+const lineEl = $('#line');
+let chipDate = null, chipKey = null, viewDate = null;
+lineEl.placeholder = T.placeholder;
+document.querySelector('[data-chip="0"]').textContent = T.today;
+document.querySelector('[data-chip="1"]').textContent = T.tomorrow;
+$('#pickLabel').textContent = T.pick;
+
+function setChip(key, date){
+  chipKey = key; chipDate = date;
+  document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed','false'));
+  if (key === 'pick') { $('#pickChip').setAttribute('aria-pressed','true'); $('#pickLabel').textContent = fmtDay(date); }
+  else { $('#pickLabel').textContent = T.pick; $('#pick').value = ''; }
+  if (key === '0' || key === '1') document.querySelector(`[data-chip="${key}"]`).setAttribute('aria-pressed','true');
+  updatePreview();
+}
+document.querySelectorAll('button.chip').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.chip;
+  if (chipKey === k) setChip(null, null);
+  else setChip(k, ymd(addDays(new Date(), +k)));
+  lineEl.focus();
+}));
+$('#pick').addEventListener('change', e => { if (e.target.value) setChip('pick', e.target.value); else setChip(null,null); });
+
+function updatePreview(){
+  const pv = $('#preview'), v = lineEl.value.trim();
+  if (!v) { pv.textContent = ''; return; }
+  const s = scan(v);
+  const c = classify(chipDate || s.date || viewDate, s.time);
+  pv.innerHTML = `${T.willFile} <b>${esc(describe(c))}</b> — ${esc(s.title)}`;
+}
+lineEl.addEventListener('input', updatePreview);
+
+function addLine(){
+  const line = lineEl.value.trim();
+  if (!line) { lineEl.focus(); return; }
+  const s = scan(line);
+  const date = chipDate || s.date || viewDate;
+  const it = Object.assign({ id: uid(), text: s.title, done:false, doneAt:null, touched: todayStr(), created: Date.now() }, classify(date, s.time));
+  db.items.push(it); save();
+  lineEl.value = ''; setChip(null, null);
+  render();
+  const fresh = document.querySelector(`#main [data-id="${it.id}"]`);
+  if (fresh) fresh.closest('.row').classList.add('fresh');
+  toast(`${T.filed} ${describe(it)} — ${it.text}`, T.fix, () => openEditor(it.id));
+}
+$('#sendBtn').addEventListener('click', addLine);
+lineEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addLine(); } });
+
+/* ---------- toast ---------- */
+let toastTimer = null, toastAction = null;
+function toast(text, btnLabel, action){
+  $('#toastText').textContent = text;
+  const b = $('#toastFix');
+  if (btnLabel) { b.textContent = btnLabel; b.hidden = false; toastAction = action; } else { b.hidden = true; toastAction = null; }
+  $('#toast').hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('#toast').hidden = true; }, 7000);
+}
+$('#toastFix').addEventListener('click', () => { $('#toast').hidden = true; if (toastAction) toastAction(); });
+
+/* ---------- render ---------- */
+function render(){
+  const now = new Date(), today = ymd(now);
+  if (viewDate && viewDate <= today) viewDate = null;
+  const vd = viewDate || today, isToday = vd === today;
+  const nowHM = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  document.body.classList.toggle('evening', now.getHours() >= 18);
+  $('#dateLine').textContent = fmtLong(isToday ? now : parseYmd(vd));
+
+  const byDT = (a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||'') || a.created - b.created;
+  const appts = db.items.filter(i => i.type==='appt' && i.date===vd).sort(byDT);
+  const todos = db.items.filter(i => i.type==='todo' && !i.done && (isToday ? (i.date<=today && !isLater(i,today)) : i.date===vd)).sort(byDT);
+  const done  = db.items.filter(i => i.type==='todo' && i.done && isToday && i.doneAt===today).sort((a,b)=>(a.doneTs||0)-(b.doneTs||0));
+  const end = ymd(addDays(now, 14));
+  const coming = db.items.filter(i => !i.done && i.date>today && i.date<=end).sort(byDT);
+  const laterN = db.items.filter(i => i.type==='todo' && !i.done && i.date<=today && isLater(i,today)).length;
+
+  // live line: changes with the time of day and what is actually on today
+  const toMin = t => { const [a,b] = t.split(':').map(Number); return a*60 + b; };
+  const dur = m => m < 60 ? `${m} min` : `${Math.floor(m/60)} h${m % 60 ? ' ' + (m % 60) + ' min' : ''}`;
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const started = !isToday ? [] : appts.filter(i => toMin(i.time) <= nowMin && nowMin - toMin(i.time) < 60);
+  const nowItem = started.length ? started[started.length-1] : null;
+  const nextItem = isToday ? (appts.find(i => toMin(i.time) > nowMin) || null) : null;
+  const tmrAppt = db.items.filter(i => i.type==='appt' && i.date===ymd(addDays(now,1))).sort(byDT)[0];
+  let pulse = '';
+  if (nowItem) pulse = T.pNow(esc(nowItem.text));
+  else if (nextItem) pulse = T.pNext(esc(nextItem.text), fmtTime(nextItem.time), dur(toMin(nextItem.time) - nowMin));
+  else if (now.getHours() >= 18 && tmrAppt) pulse = T.pTomorrow(esc(tmrAppt.text), fmtTime(tmrAppt.time));
+  else if (done.length) pulse = T.pDone(done.length);
+  else if (appts.length) pulse = T.pOpen;
+  if (appts.length >= 4 && nextItem && !nowItem) pulse = T.pFull(appts.length) + ' ' + pulse;
+  if (!isToday) pulse = '';
+  $('#pulse').innerHTML = pulse; $('#pulse').hidden = !pulse;
+
+  // week strip: the next seven days, dots show how full each one is
+  const wdFmt = new Intl.DateTimeFormat(LOC, { weekday:'short' });
+  let sh = '';
+  for (let k = 0; k < 7; k++) {
+    const d = addDays(now, k), s = ymd(d);
+    const n = db.items.filter(i => !i.done && (i.date === s || (k === 0 && i.type === 'todo' && i.date < today && !isLater(i, today)))).length;
+    sh += `<button type="button" class="dayc${s===vd ? ' on' : ''}${k===0 ? ' is-today' : ''}" data-day="${s}" aria-pressed="${s===vd}" aria-label="${esc(fmtDay(s))}"><span class="dw">${esc(wdFmt.format(d).replace('.', ''))}</span><span class="dn">${d.getDate()}</span><span class="dots">${'<i></i>'.repeat(Math.min(3, n))}</span></button>`;
+  }
+  $('#strip').innerHTML = sh;
+
+  const apptRow = i => `<li class="row ${i === nowItem ? 'now' : i === nextItem ? 'next' : (isToday && i.time < nowHM ? 'past' : '')}"><button class="rowbtn" data-act="edit" data-id="${i.id}"><span class="time">${fmtTime(i.time)}</span><span class="txt">${esc(i.text)}</span></button></li>`;
+  const todoRow = i => `<li class="sw" data-swipe="${i.id}"><div class="sw-bg" aria-hidden="true"><span>${T.swDone}</span><span>${isToday ? T.tomorrow : T.nextDay}</span></div><div class="row"><button class="check" data-act="check" data-id="${i.id}" aria-label="${T.markDone}">✓</button><button class="rowbtn" data-act="edit" data-id="${i.id}"><span class="txt">${esc(i.text)}</span></button></div></li>`;
+  const doneRow = i => `<li class="row"><button class="check on" data-act="undo" data-id="${i.id}" aria-label="${T.undo}">✓</button><span class="txt">${esc(i.text)}</span></li>`;
+  const comingRow = i => `<li class="row"><button class="rowbtn" data-act="edit" data-id="${i.id}">${i.type==='appt' ? `<span class="time">${fmtTime(i.time)}</span>` : ''}<span class="txt">${esc(i.text)}</span>${i.type==='todo' ? `<span class="tag">${T.toDoTag}</span>`:''}</button></li>`;
+
+  let h = '';
+  h += `<section><h2>${T.appts}</h2><div class="list">${appts.length ? `<ul>${appts.map(apptRow).join('')}</ul>` : `<p class="empty">${isToday ? T.noAppts : T.noApptsDay}</p>`}</div></section>`;
+  h += `<section><h2>${T.todo}</h2><div class="list">${todos.length ? `<ul>${todos.map(todoRow).join('')}</ul>` : `<p class="empty">${T.noTodo}</p>`}</div></section>`;
+  if (done.length) h += `<section class="done-sec"><h2>${T.doneToday}</h2><div class="list"><ul>${done.map(doneRow).join('')}</ul></div></section>`;
+  if (isToday && coming.length) {
+    const groups = {}; coming.forEach(i => (groups[i.date] = groups[i.date] || []).push(i));
+    const tmr = ymd(addDays(now,1));
+    h += `<section><h2>${T.coming}</h2>` + Object.keys(groups).map(d =>
+      `<div class="day"><p class="dayname">${d===tmr ? T.tomorrow : fmtDay(d)}</p><div class="list"><ul>${groups[d].map(comingRow).join('')}</ul></div></div>`).join('') + `</section>`;
+  }
+  h += `<nav class="foot"><button class="link" data-act="upcoming">${T.upcoming}</button><button class="link" data-act="log">${T.log}</button>${laterN ? `<button class="link" data-act="later">${T.later} (${laterN})</button>` : ''}<button class="link" data-act="backup">${T.backup}</button></nav>`;
+  $('#main').innerHTML = h;
+}
+
+/* ---------- actions ---------- */
+$('#main').addEventListener('click', e => {
+  if (suppressClick) return;
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  if (act === 'edit') openEditor(id);
+  if (act === 'check') {
+    const it = get(id); if (!it) return;
+    it.done = true; it.doneAt = todayStr(); it.doneTs = Date.now(); save();
+    const row = b.closest('.row'); row.classList.add('ticked');
+    const r = b.getBoundingClientRect(); celebrate(r.left + r.width/2, r.top + r.height/2);
+    setTimeout(render, 650);
+  }
+  if (act === 'undo') { const it = get(id); if (!it) return; it.done = false; it.doneAt = null; it.touched = todayStr(); save(); render(); }
+  if (act === 'log') openLog();
+  if (act === 'upcoming') openUpcoming();
+  if (act === 'later') openLater();
+  if (act === 'backup') openBackup();
+});
+
+function celebrate(x, y){
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (let k = 0; k < 2; k++) {
+    const r = document.createElement('span'); r.className = 'ring'; document.body.appendChild(r);
+    r.animate([
+      { transform:`translate(${x}px,${y}px) translate(-50%,-50%) scale(.5)`, opacity:.95 },
+      { transform:`translate(${x}px,${y}px) translate(-50%,-50%) scale(${k ? 3.4 : 2.2})`, opacity:0 }
+    ], { duration: k ? 800 : 550, delay: k ? 90 : 0, easing:'cubic-bezier(.2,.7,.3,1)', fill:'backwards' }).onfinish = () => r.remove();
+  }
+}
+
+/* ---------- week strip ---------- */
+$('#strip').addEventListener('click', e => {
+  const b = e.target.closest('[data-day]'); if (!b) return;
+  const d = b.dataset.day;
+  viewDate = (d === todayStr() || d === viewDate) ? null : d;
+  render(); updatePreview();
+});
+
+/* ---------- swipe: right = done, left = next day ---------- */
+let sw = null, suppressClick = false;
+const mainEl = $('#main');
+mainEl.addEventListener('pointerdown', e => {
+  const li = e.target.closest('.sw');
+  if (!li || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  sw = { li, row: li.querySelector('.row'), x: e.clientX, y: e.clientY, dx: 0, active: false, pid: e.pointerId };
+});
+mainEl.addEventListener('pointermove', e => {
+  if (!sw || e.pointerId !== sw.pid) return;
+  const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+  if (!sw.active) {
+    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      sw.active = true; sw.row.style.transition = 'none';
+      try { sw.li.setPointerCapture(e.pointerId); } catch(_){}
+    } else { if (Math.abs(dy) > 10) sw = null; return; }
+  }
+  sw.dx = dx; sw.li.dataset.dir = dx > 0 ? 'r' : 'l';
+  sw.row.style.transform = `translateX(${dx}px)`;
+});
+function endSwipe(e, cancel){
+  if (!sw || e.pointerId !== sw.pid) return;
+  const s = sw; sw = null; if (!s.active) return;
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 350);
+  const w = s.li.offsetWidth, th = Math.min(110, w * 0.3);
+  s.row.style.transition = 'transform .2s ease';
+  if (!cancel && Math.abs(s.dx) > th) {
+    const dir = s.dx > 0 ? 1 : -1, id = s.li.dataset.swipe;
+    s.row.style.transform = `translateX(${dir * w}px)`;
+    setTimeout(() => dir > 0 ? completeTodo(id) : pushNextDay(id), 200);
+  } else {
+    s.row.style.transform = '';
+    setTimeout(() => { delete s.li.dataset.dir; }, 220);
+  }
+}
+mainEl.addEventListener('pointerup', e => endSwipe(e, false));
+mainEl.addEventListener('pointercancel', e => endSwipe(e, true));
+
+function completeTodo(id){
+  const it = get(id); if (!it) return;
+  it.done = true; it.doneAt = todayStr(); it.doneTs = Date.now(); save(); render();
+}
+function pushNextDay(id){
+  const it = get(id); if (!it) return;
+  const prev = { date: it.date, touched: it.touched }, today = todayStr();
+  const base = it.date > today ? it.date : today;
+  it.date = ymd(addDays(parseYmd(base), 1)); it.touched = today; save(); render();
+  const label = it.date === ymd(addDays(new Date(), 1)) ? T.tomorrow.toLowerCase() : (FR ? fmtDay(it.date).toLowerCase() : fmtDay(it.date));
+  toast(T.moved(label, it.text), T.undoBtn, () => { Object.assign(it, prev); save(); render(); });
+}
+
+/* ---------- sheets ---------- */
+function openSheet(html){
+  const sh = $('#sheet'); sh.innerHTML = html; sh.hidden = false; $('#back').hidden = false;
+  const f = sh.querySelector('input,textarea,button'); if (f) setTimeout(() => f.focus(), 30);
+}
+function closeSheet(){ $('#sheet').hidden = true; $('#back').hidden = true; $('#sheet').innerHTML = ''; }
+$('#back').addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
+
+function openEditor(id){
+  const it = get(id); if (!it) return;
+  openSheet(`<h3>${T.edit}</h3>
+    <label class="field">${T.text}<input id="eText" value="${esc(it.text)}"></label>
+    <div class="two">
+      <label class="field">${T.date}<input type="date" id="eDate" value="${it.date||''}"></label>
+      <label class="field">${T.time}<input type="time" id="eTime" value="${it.time||''}"></label>
+    </div>
+    <div class="actions"><button class="btn danger" id="eDel" type="button">${T.del}</button><span class="spacer"></span>
+      <button class="btn" id="eCancel" type="button">${T.cancel}</button><button class="btn primary" id="eSave" type="button">${T.save}</button></div>`);
+  $('#eCancel').onclick = closeSheet;
+  $('#eDel').onclick = () => { db.items = db.items.filter(x => x.id !== id); save(); closeSheet(); render(); toast(T.deleted); };
+  $('#eSave').onclick = () => {
+    const text = $('#eText').value.trim() || it.text;
+    Object.assign(it, { text, touched: todayStr() }, classify($('#eDate').value || null, $('#eTime').value || null));
+    if (it.type === 'appt') { it.done = false; it.doneAt = null; }
+    save(); closeSheet(); render();
+  };
+  $('#eText').addEventListener('keydown', e => { if (e.key === 'Enter') $('#eSave').click(); });
+}
+
+function openLog(){
+  const done = db.items.filter(i => i.type==='todo' && i.done && i.doneAt).sort((a,b) => b.doneAt.localeCompare(a.doneAt) || (b.doneTs||0)-(a.doneTs||0));
+  const groups = {}; done.forEach(i => (groups[i.doneAt] = groups[i.doneAt] || []).push(i));
+  const today = todayStr();
+  const body = done.length ? Object.keys(groups).map(d =>
+    `<h4>${d===today ? T.today : fmtDay(d)} · ${T.items(groups[d].length)}</h4><div class="list"><ul>${groups[d].map(i => `<li class="row"><span class="txt">${esc(i.text)}</span></li>`).join('')}</ul></div>`).join('')
+    : `<p class="note">${T.logEmpty}</p>`;
+  openSheet(`<h3>${T.log}</h3>${body}<div class="actions"><span class="spacer"></span><button class="btn" type="button" id="xClose">${T.close}</button></div>`);
+  $('#xClose').onclick = closeSheet;
+}
+
+function openUpcoming(){
+  const today = todayStr(), tmr = ymd(addDays(new Date(),1));
+  const items = db.items.filter(i => !i.done && i.date > today)
+    .sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||'') || a.created - b.created);
+  const groups = {}; items.forEach(i => (groups[i.date] = groups[i.date] || []).push(i));
+  const row = i => `<li class="row"><button class="rowbtn" data-up="${i.id}">${i.type==='appt' ? `<span class="time">${fmtTime(i.time)}</span>` : ''}<span class="txt">${esc(i.text)}</span>${i.type==='todo' ? `<span class="tag">${T.toDoTag}</span>` : ''}</button></li>`;
+  const body = items.length ? Object.keys(groups).map(d =>
+    `<h4>${d===tmr ? T.tomorrow : fmtDay(d)}</h4><div class="list"><ul>${groups[d].map(row).join('')}</ul></div>`).join('')
+    : `<p class="note">${T.upEmpty}</p>`;
+  openSheet(`<h3>${T.upcoming}</h3>${body}<div class="actions"><span class="spacer"></span><button class="btn" type="button" id="xClose">${T.close}</button></div>`);
+  $('#xClose').onclick = closeSheet;
+  $('#sheet').querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const id = b.dataset.up; closeSheet(); openEditor(id); });
+}
+
+function openLater(){
+  const today = todayStr();
+  const items = db.items.filter(i => i.type==='todo' && !i.done && i.date<=today && isLater(i,today));
+  const body = items.length ? `<div class="list"><ul>${items.map(i => `<li class="row"><span class="txt">${esc(i.text)}</span><button class="btn" type="button" data-bring="${i.id}">${T.bring}</button></li>`).join('')}</ul></div>` : `<p class="note">${T.laterEmpty}</p>`;
+  openSheet(`<h3>${T.later}</h3><p class="note">${T.laterNote}</p>${body}<div class="actions"><span class="spacer"></span><button class="btn" type="button" id="xClose">${T.close}</button></div>`);
+  $('#xClose').onclick = closeSheet;
+  $('#sheet').querySelectorAll('[data-bring]').forEach(b => b.onclick = () => {
+    const it = get(b.dataset.bring); if (!it) return; it.date = todayStr(); it.touched = todayStr(); save(); render();
+    b.closest('.row').remove(); if (!$('#sheet').querySelector('[data-bring]')) closeSheet();
+  });
+}
+
+function openBackup(){
+  const json = JSON.stringify(db);
+  openSheet(`<h3>${T.backup}</h3><p class="note">${T.backupNote}</p>
+    <div class="actions"><button class="btn primary" type="button" id="bDown">${T.download}</button><button class="btn" type="button" id="bCopy">${T.copy}</button></div>
+    <label class="field" style="margin-top:12px">${T.backupText}<textarea id="bText" readonly>${esc(json)}</textarea></label>
+    <h4>${T.restoreH}</h4>
+    <label class="field">${T.restoreFile}<input type="file" id="bFile" accept=".json,application/json"></label>
+    <label class="field">${T.restorePaste}<textarea id="rText"></textarea></label>
+    <div class="actions"><button class="btn" type="button" id="bRestore">${T.restore}</button><span class="spacer"></span><button class="btn" type="button" id="xClose">${T.close}</button></div>`);
+  $('#xClose').onclick = closeSheet;
+  $('#bDown').onclick = () => {
+    try {
+      const url = URL.createObjectURL(new Blob([json], {type:'application/json'}));
+      const a = document.createElement('a'); a.href = url; a.download = `agendalite-backup-${todayStr()}.json`;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch(e) {}
+  };
+  $('#bCopy').onclick = async () => {
+    const ta = $('#bText');
+    try { await navigator.clipboard.writeText(ta.value); }
+    catch(e) { ta.select(); try { document.execCommand('copy'); } catch(_){} }
+    $('#bCopy').textContent = T.copied;
+  };
+  $('#bFile').onchange = e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const r = new FileReader(); r.onload = () => { $('#rText').value = r.result; }; r.readAsText(f);
+  };
+  let armed = false;
+  $('#bRestore').onclick = () => {
+    let p; try { p = JSON.parse($('#rText').value); } catch(e) { p = null; }
+    if (!p || p.app !== 'AgendaLite' || !Array.isArray(p.items)) { toast(T.bad); return; }
+    if (!armed) { armed = true; $('#bRestore').textContent = T.restoreAgain; return; }
+    db = p; save(); closeSheet(); render(); toast(T.restored);
+  };
+}
+
+/* ---------- start ---------- */
+load(); showStoreWarn(); render();
+setInterval(render, 60000);
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+</script>
+</body>
+</html>
