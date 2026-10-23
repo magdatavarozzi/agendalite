@@ -100,7 +100,7 @@ ul{list-style:none;margin:0;padding:0}
 /* toast */
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));
   width:min(528px,calc(100% - 24px));display:flex;align-items:center;gap:10px;
-  background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 12px 12px 16px;z-index:30;
+  background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 12px 12px 16px;z-index:45;
   box-shadow:0 8px 30px rgba(0,0,0,.18)}
 .toast[hidden]{display:none}
 .toast span{flex:1;font-size:15px}
@@ -160,6 +160,7 @@ ul{list-style:none;margin:0;padding:0}
 .sw[data-dir] .sw-bg{opacity:1}
 .sw[data-dir=r] .sw-bg{background:var(--joy);color:#1b2430}
 .sw[data-dir=l] .sw-bg{background:var(--accent-soft);color:var(--ink)}
+.sw[data-mode=log][data-dir=l] .sw-bg{background:rgba(214,69,69,.16);color:#c0392b}
 .sw[data-dir=r] .sw-bg span:last-child,.sw[data-dir=l] .sw-bg span:first-child{visibility:hidden}
 @media (prefers-reduced-motion: reduce){.ring{display:none}.row.fresh{animation:none}}
 </style>
@@ -198,10 +199,10 @@ const FR = (navigator.language || 'en').toLowerCase().startsWith('fr');
 document.documentElement.lang = FR ? 'fr' : 'en';
 const LOC = FR ? 'fr-CA' : 'en-US';
 const T = FR ? {
-  placeholder:'Dentiste mardi 14h', today:'Aujourd’hui', tomorrow:'Demain', pick:'Choisir un jour',
+  placeholder:'Quoi et quand, ex. Appel vendredi 15h', today:'Aujourd’hui', tomorrow:'Demain', pick:'Choisir un jour',
   filed:'Classé :', fix:'Corriger', appts:'Rendez-vous', noAppts:'Aucun rendez-vous aujourd’hui.',
   todo:'À faire', noTodo:'Rien pour l’instant. Écrivez une ligne ci-dessus.', doneToday:'Fait aujourd’hui',
-  coming:'À venir', later:'Plus tard', log:'Tout ce qui est fait', backup:'Sauvegarde', edit:'Modifier',
+  coming:'À venir', later:'Plus tard', log:'Fait', backup:'Sauvegarde', edit:'Modifier',
   text:'Texte', date:'Jour', time:'Heure', save:'Enregistrer', del:'Supprimer', cancel:'Annuler',
   bring:'Ramener', laterNote:'Ce qui n’a pas bougé depuis une semaine attend ici. Touchez « Ramener » pour le remettre à aujourd’hui.',
   laterEmpty:'Rien ici.', logEmpty:'Les éléments cochés apparaîtront ici.', toDoTag:'à faire', toDo:'À faire',
@@ -217,12 +218,12 @@ const T = FR ? {
   pTomorrow:(t,tm)=>`Demain commence par <b>${t}</b> à ${tm}.`, pDone:n=>`${n===1?'1 chose faite':n+' choses faites'} aujourd’hui.`,
   pOpen:'Le reste de la journée est libre.', pFull:n=>`${n} rendez-vous aujourd’hui.`,
   willFile:'Sera classé :', swDone:'Fait', nextDay:'Jour suivant', undoBtn:'Annuler', noApptsDay:'Aucun rendez-vous.',
-  moved:(d,t)=>`Reporté à ${d} : ${t}`
+  moved:(d,t)=>`Reporté à ${d} : ${t}`, logHint:'Balayez une entrée vers la gauche pour la retirer.'
 } : {
-  placeholder:'Dentist Tuesday 2pm', today:'Today', tomorrow:'Tomorrow', pick:'Pick a day',
+  placeholder:'What and when, e.g. Call Friday 3pm', today:'Today', tomorrow:'Tomorrow', pick:'Pick a day',
   filed:'Filed:', fix:'Fix', appts:'Appointments', noAppts:'No appointments today.',
   todo:'To do', noTodo:'Nothing yet. Type a line above.', doneToday:'Done today',
-  coming:'Coming up', later:'Later', log:'Everything done', backup:'Backup', edit:'Edit',
+  coming:'Coming up', later:'Later', log:'Done', backup:'Backup', edit:'Edit',
   text:'Text', date:'Day', time:'Time', save:'Save', del:'Delete', cancel:'Cancel',
   bring:'Bring back', laterNote:'Things untouched for a week wait here. Tap “Bring back” to move one to today.',
   laterEmpty:'Nothing here.', logEmpty:'Checked-off items will appear here.', toDoTag:'to do', toDo:'To do',
@@ -238,7 +239,7 @@ const T = FR ? {
   pTomorrow:(t,tm)=>`Tomorrow starts with <b>${t}</b> at ${tm}.`, pDone:n=>`${n===1?'1 thing':n+' things'} done today.`,
   pOpen:'The rest of today is open.', pFull:n=>`${n} appointments today.`,
   willFile:'Files as:', swDone:'Done', nextDay:'Next day', undoBtn:'Undo', noApptsDay:'No appointments.',
-  moved:(d,t)=>`Moved to ${d}: ${t}`
+  moved:(d,t)=>`Moved to ${d}: ${t}`, logHint:'Swipe left on an entry to remove it.'
 };
 
 /* ---------- date helpers ---------- */
@@ -571,24 +572,25 @@ $('#strip').addEventListener('click', e => {
 
 /* ---------- swipe: right = done, left = next day ---------- */
 let sw = null, suppressClick = false;
-const mainEl = $('#main');
-mainEl.addEventListener('pointerdown', e => {
+function swDown(e){
   const li = e.target.closest('.sw');
   if (!li || (e.pointerType === 'mouse' && e.button !== 0)) return;
-  sw = { li, row: li.querySelector('.row'), x: e.clientX, y: e.clientY, dx: 0, active: false, pid: e.pointerId };
-});
-mainEl.addEventListener('pointermove', e => {
+  sw = { li, row: li.querySelector('.row'), x: e.clientX, y: e.clientY, dx: 0, active: false, pid: e.pointerId, log: li.dataset.mode === 'log' };
+}
+function swMove(e){
   if (!sw || e.pointerId !== sw.pid) return;
-  const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+  let dx = e.clientX - sw.x; const dy = e.clientY - sw.y;
   if (!sw.active) {
     if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       sw.active = true; sw.row.style.transition = 'none';
       try { sw.li.setPointerCapture(e.pointerId); } catch(_){}
     } else { if (Math.abs(dy) > 10) sw = null; return; }
   }
-  sw.dx = dx; sw.li.dataset.dir = dx > 0 ? 'r' : 'l';
+  if (sw.log && dx > 0) dx = 0;
+  sw.dx = dx;
+  if (dx) sw.li.dataset.dir = dx > 0 ? 'r' : 'l'; else delete sw.li.dataset.dir;
   sw.row.style.transform = `translateX(${dx}px)`;
-});
+}
 function endSwipe(e, cancel){
   if (!sw || e.pointerId !== sw.pid) return;
   const s = sw; sw = null; if (!s.active) return;
@@ -598,14 +600,27 @@ function endSwipe(e, cancel){
   if (!cancel && Math.abs(s.dx) > th) {
     const dir = s.dx > 0 ? 1 : -1, id = s.li.dataset.swipe;
     s.row.style.transform = `translateX(${dir * w}px)`;
-    setTimeout(() => dir > 0 ? completeTodo(id) : pushNextDay(id), 200);
+    setTimeout(() => s.log ? deleteDone(id) : (dir > 0 ? completeTodo(id) : pushNextDay(id)), 200);
   } else {
     s.row.style.transform = '';
     setTimeout(() => { delete s.li.dataset.dir; }, 220);
   }
 }
-mainEl.addEventListener('pointerup', e => endSwipe(e, false));
-mainEl.addEventListener('pointercancel', e => endSwipe(e, true));
+for (const el of [$('#main'), $('#sheet')]) {
+  el.addEventListener('pointerdown', swDown);
+  el.addEventListener('pointermove', swMove);
+  el.addEventListener('pointerup', e => endSwipe(e, false));
+  el.addEventListener('pointercancel', e => endSwipe(e, true));
+}
+function refreshLog(){
+  const sh = $('#sheet'); if (sh.hidden || !sh.querySelector('[data-sheet="log"]')) return;
+  const st = sh.scrollTop; openLog(); sh.scrollTop = st;
+}
+function deleteDone(id){
+  const idx = db.items.findIndex(x => x.id === id); if (idx < 0) return;
+  const [it] = db.items.splice(idx, 1); save(); render(); refreshLog();
+  toast(`${T.deleted}: ${it.text}`, T.undoBtn, () => { db.items.splice(Math.min(idx, db.items.length), 0, it); save(); render(); refreshLog(); });
+}
 
 function completeTodo(id){
   const it = get(id); if (!it) return;
@@ -623,7 +638,7 @@ function pushNextDay(id){
 /* ---------- sheets ---------- */
 function openSheet(html){
   const sh = $('#sheet'); sh.innerHTML = html; sh.hidden = false; $('#back').hidden = false;
-  const f = sh.querySelector('input,textarea,button'); if (f) setTimeout(() => f.focus(), 30);
+  const f = sh.querySelector('input,textarea,button'); if (f) setTimeout(() => f.focus({ preventScroll: true }), 30);
 }
 function closeSheet(){ $('#sheet').hidden = true; $('#back').hidden = true; $('#sheet').innerHTML = ''; }
 $('#back').addEventListener('click', closeSheet);
@@ -655,9 +670,9 @@ function openLog(){
   const groups = {}; done.forEach(i => (groups[i.doneAt] = groups[i.doneAt] || []).push(i));
   const today = todayStr();
   const body = done.length ? Object.keys(groups).map(d =>
-    `<h4>${d===today ? T.today : fmtDay(d)} · ${T.items(groups[d].length)}</h4><div class="list"><ul>${groups[d].map(i => `<li class="row"><span class="txt">${esc(i.text)}</span></li>`).join('')}</ul></div>`).join('')
+    `<h4>${d===today ? T.today : fmtDay(d)} · ${T.items(groups[d].length)}</h4><div class="list"><ul>${groups[d].map(i => `<li class="sw" data-swipe="${i.id}" data-mode="log"><div class="sw-bg" aria-hidden="true"><span></span><span>${T.del}</span></div><div class="row"><span class="txt">${esc(i.text)}</span></div></li>`).join('')}</ul></div>`).join('')
     : `<p class="note">${T.logEmpty}</p>`;
-  openSheet(`<h3>${T.log}</h3>${body}<div class="actions"><span class="spacer"></span><button class="btn" type="button" id="xClose">${T.close}</button></div>`);
+  openSheet(`<h3 data-sheet="log">${T.log}</h3>${done.length ? `<p class="note">${T.logHint}</p>` : ''}${body}<div class="actions"><span class="spacer"></span><button class="btn" type="button" id="xClose">${T.close}</button></div>`);
   $('#xClose').onclick = closeSheet;
 }
 
