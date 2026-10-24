@@ -43,7 +43,7 @@ body{margin:0;background:var(--bg);color:var(--ink);
 button,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.wrap{max-width:560px;margin:0 auto;padding:22px 18px 56px}
+.wrap{max-width:560px;margin:0 auto;padding:22px 18px 104px}
 
 /* header */
 .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
@@ -81,7 +81,7 @@ ul{list-style:none;margin:0;padding:0}
 .empty{color:var(--faint);padding:13px 14px;margin:0}
 .check{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--faint);background:none;
   display:grid;place-items:center;font-size:14px;padding:0;color:transparent}
-.check:hover{border-color:var(--accent)}
+@media (hover: hover){.check:hover{border-color:var(--accent)}}
 .row.ticked .txt{text-decoration:line-through;color:var(--faint)}
 .row.ticked .check,.check.on{background:var(--joy);border-color:var(--joy);color:#1b2430}
 .done-sec .list{background:var(--joy-soft);border-color:transparent}
@@ -95,7 +95,7 @@ ul{list-style:none;margin:0;padding:0}
 /* footer */
 .foot{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:34px;padding-top:16px;border-top:1px solid var(--line)}
 .link{background:none;border:0;padding:6px 0;color:var(--soft);font-size:15px}
-.link:hover{color:var(--ink)}
+@media (hover: hover){.link:hover{color:var(--ink)}}
 
 /* toast */
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));
@@ -139,8 +139,9 @@ ul{list-style:none;margin:0;padding:0}
 @keyframes fresh{from{background:var(--accent-soft)}to{background:transparent}}
 .row.fresh{animation:fresh 1.8s ease-out}
 /* live preview */
-.preview{margin:6px 4px 0;min-height:1.45em;font-size:14px;color:var(--soft);overflow-wrap:anywhere}
+.preview{margin:6px 4px 0;min-height:1.45em;font-size:14px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .preview b{color:var(--ink);font-weight:650}
+.hint{margin:6px 4px 0;font-size:13px;color:var(--faint)}
 /* week strip */
 .strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:12px 0 16px}
 .dayc{border:0;background:none;border-radius:12px;padding:6px 0 6px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--soft)}
@@ -199,7 +200,7 @@ const FR = (navigator.language || 'en').toLowerCase().startsWith('fr');
 document.documentElement.lang = FR ? 'fr' : 'en';
 const LOC = FR ? 'fr-CA' : 'en-US';
 const T = FR ? {
-  placeholder:'Quoi et quand, ex. Appel vendredi 15h', today:'Aujourd’hui', tomorrow:'Demain', pick:'Choisir un jour',
+  placeholder:'Appel vendredi 15h', today:'Aujourd’hui', tomorrow:'Demain', pick:'Choisir un jour',
   filed:'Classé :', fix:'Corriger', appts:'Rendez-vous', noAppts:'Aucun rendez-vous aujourd’hui.',
   todo:'À faire', noTodo:'Rien pour l’instant. Écrivez une ligne ci-dessus.', doneToday:'Fait aujourd’hui',
   coming:'À venir', later:'Plus tard', log:'Fait', backup:'Sauvegarde', edit:'Modifier',
@@ -218,9 +219,9 @@ const T = FR ? {
   pTomorrow:(t,tm)=>`Demain commence par <b>${t}</b> à ${tm}.`, pDone:n=>`${n===1?'1 chose faite':n+' choses faites'} aujourd’hui.`,
   pOpen:'Le reste de la journée est libre.', pFull:n=>`${n} rendez-vous aujourd’hui.`,
   willFile:'Sera classé :', swDone:'Fait', nextDay:'Jour suivant', undoBtn:'Annuler', noApptsDay:'Aucun rendez-vous.',
-  moved:(d,t)=>`Reporté à ${d} : ${t}`, logHint:'Balayez une entrée vers la gauche pour la retirer.'
+  moved:(d,t)=>`Reporté à ${d} : ${t}`, logHint:'Balayez une entrée vers la gauche pour la retirer.', swipeHint:'Balayez vers la droite quand c’est fait, vers la gauche pour demain.', passed:'cette date est passée'
 } : {
-  placeholder:'What and when, e.g. Call Friday 3pm', today:'Today', tomorrow:'Tomorrow', pick:'Pick a day',
+  placeholder:'Call Friday 3pm', today:'Today', tomorrow:'Tomorrow', pick:'Pick a day',
   filed:'Filed:', fix:'Fix', appts:'Appointments', noAppts:'No appointments today.',
   todo:'To do', noTodo:'Nothing yet. Type a line above.', doneToday:'Done today',
   coming:'Coming up', later:'Later', log:'Done', backup:'Backup', edit:'Edit',
@@ -239,7 +240,7 @@ const T = FR ? {
   pTomorrow:(t,tm)=>`Tomorrow starts with <b>${t}</b> at ${tm}.`, pDone:n=>`${n===1?'1 thing':n+' things'} done today.`,
   pOpen:'The rest of today is open.', pFull:n=>`${n} appointments today.`,
   willFile:'Files as:', swDone:'Done', nextDay:'Next day', undoBtn:'Undo', noApptsDay:'No appointments.',
-  moved:(d,t)=>`Moved to ${d}: ${t}`, logHint:'Swipe left on an entry to remove it.'
+  moved:(d,t)=>`Moved to ${d}: ${t}`, logHint:'Swipe left on an entry to remove it.', swipeHint:'Swipe right when done, left for tomorrow.', passed:'that date has passed'
 };
 
 /* ---------- date helpers ---------- */
@@ -251,7 +252,9 @@ const daysBetween = (a,b) => Math.round((parseYmd(b)-parseYmd(a))/864e5);
 const todayStr = () => ymd(new Date());
 const capFirst = s => s.charAt(0).toUpperCase() + s.slice(1);
 const fmtLong = d => capFirst(new Intl.DateTimeFormat(LOC,{weekday:'long',month:'long',day:'numeric'}).format(d));
-const fmtDay = s => capFirst(new Intl.DateTimeFormat(LOC,{weekday:'long',month:'short',day:'numeric'}).format(parseYmd(s)));
+const fmtDay = s => { const d = parseYmd(s), o = { weekday:'long', month:'short', day:'numeric' };
+  if (d.getFullYear() !== new Date().getFullYear()) o.year = 'numeric';
+  return capFirst(new Intl.DateTimeFormat(LOC, o).format(d)); };
 const fmtTime = t => { if(!t) return ''; const [h,m] = t.split(':').map(Number); const d = new Date(2000,0,1,h,m);
   return new Intl.DateTimeFormat(LOC,{hour:'numeric',minute:'2-digit'}).format(d); };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -266,7 +269,7 @@ const WEEKDAYS = {sunday:0,dimanche:0,monday:1,lundi:1,tuesday:2,tues:2,tue:2,ma
   mercredi:3,thursday:4,thurs:4,thur:4,thu:4,jeudi:4,friday:5,fri:5,vendredi:5,saturday:6,samedi:6};
 const alt = o => Object.keys(o).sort((a,b)=>b.length-a.length).join('|');
 const MON = alt(MONTHS), WD = alt(WEEKDAYS);
-const PRE_T = '(?:(?:at|@|a|vers|around|by|for|pour)\\s+)?';
+const PRE_T = '(?:(?:\\b(?:at|a|vers|around|by|for|pour)|@)\\s+)?';
 
 function norm(s){ // lowercase, accents removed, same length as input
   let o = '';
@@ -283,7 +286,7 @@ function norm(s){ // lowercase, accents removed, same length as input
 
 function scan(line, now = new Date()){
   const n = norm(line), used = [];
-  let ymdParts = null, rel = null, wd = null, isNext = false, hh = null, mm = 0;
+  let ymdParts = null, rel = null, wd = null, isNext = false, hh = null, mm = 0, past = false;
   const take = (src, fn) => {
     const re = new RegExp(src, 'g'); let m;
     while ((m = re.exec(n))) {
@@ -321,7 +324,7 @@ function scan(line, now = new Date()){
   take(PRE_T + '\\b(\\d{1,2})\\s?h\\s?(\\d{2})?\\b', m => setTime(m[1], m[2]));
   take(PRE_T + '\\b(\\d{1,2}):(\\d{2})\\b', m => setTime(m[1], m[2]));
   take('\\b(?:at|@|a)\\s+(noon|midday|midi)\\b|\\b(noon|midday|midi)\\b', () => setTime(12, 0));
-  take('\\b(?:at|@|vers)\\s+(\\d{1,2})\\b(?![:/h\\d])', m => { let h = +m[1]; if (h < 1 || h > 12) return false; if (h <= 7) h += 12; return setTime(h, 0); });
+  take('(?:\\b(?:at|vers)|@)\\s+(\\d{1,2})\\b(?![:/h\\d])', m => { let h = +m[1]; if (h < 1 || h > 12) return false; if (h <= 7) h += 12; return setTime(h, 0); });
 
   // relative day words
   take("\\b(?:(?:for|pour)\\s+)?(day\\s+after\\s+tomorrow|apres-demain|apres\\s+demain|aujourd'hui|aujourdhui|today|tonight|ce\\s+soir|tomorrow|tmrw|demain)\\b", m => {
@@ -345,7 +348,8 @@ function scan(line, now = new Date()){
     let cand = new Date(y || now.getFullYear(), mo-1, d);
     if (cand.getMonth() !== mo-1) cand = null; // e.g. Feb 31
     else if (!y && cand < today0) cand = new Date(now.getFullYear()+1, mo-1, d);
-    if (cand) date = ymd(cand);
+    if (cand && cand < today0) past = true;   // a date that has already gone by is not used
+    else if (cand) date = ymd(cand);
   } else if (rel !== null) {
     date = ymd(addDays(today0, rel));
   } else if (wd !== null) {
@@ -368,7 +372,7 @@ function scan(line, now = new Date()){
   let prev;
   do { prev = t; t = t.replace(lead, '').replace(trail, '').trim(); } while (t !== prev && t);
   if (!t) t = line.trim();
-  return { title: t, date, time };
+  return { title: t, date, time, past };
 }
 /*SCANNER_END*/
 
@@ -436,7 +440,7 @@ function updatePreview(){
   if (!v) { pv.textContent = ''; return; }
   const s = scan(v);
   const c = classify(chipDate || s.date || viewDate, s.time);
-  pv.innerHTML = `${T.willFile} <b>${esc(describe(c))}</b> — ${esc(s.title)}`;
+  pv.innerHTML = `${T.willFile} <b>${esc(describe(c))}</b> — ${esc(s.title)}${s.past && !chipDate ? ` (${T.passed})` : ''}`;
 }
 lineEl.addEventListener('input', updatePreview);
 
@@ -445,13 +449,14 @@ function addLine(){
   if (!line) { lineEl.focus(); return; }
   const s = scan(line);
   const date = chipDate || s.date || viewDate;
+  const pastNote = s.past && !chipDate;
   const it = Object.assign({ id: uid(), text: s.title, done:false, doneAt:null, touched: todayStr(), created: Date.now() }, classify(date, s.time));
   db.items.push(it); save();
   lineEl.value = ''; setChip(null, null);
   render();
   const fresh = document.querySelector(`#main [data-id="${it.id}"]`);
   if (fresh) fresh.closest('.row').classList.add('fresh');
-  toast(`${T.filed} ${describe(it)} — ${it.text}`, T.fix, () => openEditor(it.id));
+  toast(`${T.filed} ${describe(it)} — ${it.text}${pastNote ? ` (${T.passed})` : ''}`, T.fix, () => openEditor(it.id));
 }
 $('#sendBtn').addEventListener('click', addLine);
 lineEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addLine(); } });
@@ -475,6 +480,7 @@ function render(){
   const nowHM = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   document.body.classList.toggle('evening', now.getHours() >= 18);
   $('#dateLine').textContent = fmtLong(isToday ? now : parseYmd(vd));
+  $('#pick').min = today;
 
   const byDT = (a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||'') || a.created - b.created;
   const appts = db.items.filter(i => i.type==='appt' && i.date===vd).sort(byDT);
@@ -519,7 +525,7 @@ function render(){
 
   let h = '';
   h += `<section><h2>${T.appts}</h2><div class="list">${appts.length ? `<ul>${appts.map(apptRow).join('')}</ul>` : `<p class="empty">${isToday ? T.noAppts : T.noApptsDay}</p>`}</div></section>`;
-  h += `<section><h2>${T.todo}</h2><div class="list">${todos.length ? `<ul>${todos.map(todoRow).join('')}</ul>` : `<p class="empty">${T.noTodo}</p>`}</div></section>`;
+  h += `<section><h2>${T.todo}</h2><div class="list">${todos.length ? `<ul>${todos.map(todoRow).join('')}</ul>` : `<p class="empty">${T.noTodo}</p>`}</div>${todos.length && !db.seenSwipe ? `<p class="hint">${T.swipeHint}</p>` : ''}</section>`;
   if (done.length) h += `<section class="done-sec"><h2>${T.doneToday}</h2><div class="list"><ul>${done.map(doneRow).join('')}</ul></div></section>`;
   if (isToday && coming.length) {
     const groups = {}; coming.forEach(i => (groups[i.date] = groups[i.date] || []).push(i));
@@ -599,6 +605,7 @@ function endSwipe(e, cancel){
   s.row.style.transition = 'transform .2s ease';
   if (!cancel && Math.abs(s.dx) > th) {
     const dir = s.dx > 0 ? 1 : -1, id = s.li.dataset.swipe;
+    db.seenSwipe = true;
     s.row.style.transform = `translateX(${dir * w}px)`;
     setTimeout(() => s.log ? deleteDone(id) : (dir > 0 ? completeTodo(id) : pushNextDay(id)), 200);
   } else {
@@ -649,7 +656,7 @@ function openEditor(id){
   openSheet(`<h3>${T.edit}</h3>
     <label class="field">${T.text}<input id="eText" value="${esc(it.text)}"></label>
     <div class="two">
-      <label class="field">${T.date}<input type="date" id="eDate" value="${it.date||''}"></label>
+      <label class="field">${T.date}<input type="date" id="eDate" min="${todayStr()}" value="${it.date||''}"></label>
       <label class="field">${T.time}<input type="time" id="eTime" value="${it.time||''}"></label>
     </div>
     <div class="actions"><button class="btn danger" id="eDel" type="button">${T.del}</button><span class="spacer"></span>
